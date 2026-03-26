@@ -9,7 +9,11 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Firebase SDKs (versão compat) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     <style>
+        /* ========== TODO O CSS PERMANECE IGUAL AO ORIGINAL ========== */
         * {
             margin: 0;
             padding: 0;
@@ -32,7 +36,6 @@
             padding: 0 32px;
         }
 
-        /* Header escuro */
         .header {
             background-color: #000000;
             padding: 28px 0 20px;
@@ -98,7 +101,6 @@
             border-bottom-color: #ffffff;
         }
 
-        /* Barra de pesquisa */
         .search-container {
             margin: 32px 0 16px;
             display: flex;
@@ -143,7 +145,6 @@
             color: #666;
         }
 
-        /* Filtros - categoria */
         .filters-section {
             margin: 24px 0 32px;
         }
@@ -188,7 +189,6 @@
             letter-spacing: 0.5px;
         }
 
-        /* Grade produtos */
         .product-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -231,7 +231,6 @@
             transform: scale(1.02);
         }
 
-        /* Setas de navegação */
         .nav-arrow {
             position: absolute;
             top: 50%;
@@ -269,7 +268,6 @@
             right: 12px;
         }
 
-        /* Badge de status */
         .status-badge {
             position: absolute;
             top: 16px;
@@ -363,7 +361,6 @@
             color: #ffffff;
         }
 
-        /* Botão detalhes */
         .btn-details {
             display: inline-flex;
             align-items: center;
@@ -388,7 +385,6 @@
             color: #ffffff;
         }
 
-        /* Modal */
         .modal {
             display: none;
             position: fixed;
@@ -551,7 +547,6 @@
             }
         }
 
-        /* Seção diferenciais (quadrados) */
         .feature-section {
             border-top: 1px solid #1f1f1f;
             border-bottom: 1px solid #1f1f1f;
@@ -591,7 +586,6 @@
             color: #9a9a9a;
         }
 
-        /* Footer reorganizado */
         .footer {
             background-color: #000000;
             padding: 48px 0 32px;
@@ -697,7 +691,6 @@
             margin-top: 32px;
         }
 
-        /* Admin panel (mesmo estilo anterior) */
         .admin-panel {
             max-width: 680px;
             margin: 60px auto 40px;
@@ -884,11 +877,11 @@
                 <button class="filter-btn cat-btn" data-cat="vestuario">VESTUÁRIO</button>
                 <button class="filter-btn cat-btn" data-cat="lifestyle">LIFESTYLE</button>
             </div>
-            <div class="result-info" id="result-info">✦ ADICIONE SUAS PEÇAS NO PAINEL ADMIN ✦</div>
+            <div class="result-info" id="result-info">✦ CARREGANDO ACERVO ✦</div>
         </div>
 
         <div class="product-grid" id="product-grid">
-            <div class="empty-message">✦ Seu acervo exclusivo começa aqui ✦<br>Clique em "Área do Admin" para adicionar produtos</div>
+            <div class="empty-message">✦ Carregando produtos... ✦</div>
         </div>
     </div>
 
@@ -915,14 +908,12 @@
 
 <footer class="footer">
     <div class="container">
-        <!-- Linha 1: redes sociais -->
         <div class="footer-row">
             <div class="footer-social">
                 <a href="https://www.instagram.com/fb.elegancelux/" target="_blank">📷 @fb.elegancelux</a>
                 <a href="https://wa.me/5543996179533?text=Olá!%20Vi%20o%20site%20e%20tenho%20interesse." target="_blank">📱 (43) 99617-9533</a>
             </div>
         </div>
-        <!-- Linha 2: formas de pagamento -->
         <div class="footer-row">
             <div class="payment-methods">
                 <span class="payment-item">💳 Cartão de Crédito</span>
@@ -931,7 +922,6 @@
                 <span class="payment-item">💵 Dinheiro</span>
             </div>
         </div>
-        <!-- Linha 3: FALE CONOSCO NO WHATSAPP (acima do admin) -->
         <div class="footer-row">
             <div class="whatsapp-footer">
                 <a href="https://wa.me/5543996179533?text=Olá!%20Gostaria%20de%20mais%20informações%20sobre%20os%20produtos." class="btn-whatsapp-footer" target="_blank">
@@ -939,13 +929,11 @@
                 </a>
             </div>
         </div>
-        <!-- Linha 4: Área do Admin -->
         <div class="footer-row">
             <div class="admin-button-footer">
                 <button class="btn-admin-footer" id="adminButton">🔐 Área do Admin</button>
             </div>
         </div>
-        <!-- Copyright -->
         <div class="copyright">
             FB Elegance Lux ® – Todos os direitos reservados.
         </div>
@@ -982,7 +970,6 @@
     </div>
 </div>
 
-<!-- Modal de detalhes do produto -->
 <div id="productModal" class="modal">
     <div class="modal-content">
         <div class="modal-close">&times;</div>
@@ -1006,39 +993,137 @@
 </div>
 
 <script>
+    // ==================== CONFIGURAÇÃO DO FIREBASE ====================
+    // Configuração do seu projeto Firebase (já inserida)
+    const firebaseConfig = {
+        apiKey: "AIzaSyAYeLqkjRkNrX3vQ0fgwpaqHOA1w-4Q64Q",
+        authDomain: "fbelegance.firebaseapp.com",
+        projectId: "fbelegance",
+        storageBucket: "fbelegance.firebasestorage.app",
+        messagingSenderId: "160510494891",
+        appId: "1:160510494891:web:a6200958c0c032109d0fee",
+        measurementId: "G-E1DELZN4BD"
+    };
+
+    // Inicializa o Firebase (usando a versão compat)
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const produtosRef = db.collection("produtos"); // nome da coleção no Firestore
+
+    // Variáveis globais
     let produtos = [];
-
-    function loadFromStorage() {
-        const saved = localStorage.getItem('fb_elegance_products');
-        if (saved) {
-            try {
-                produtos = JSON.parse(saved);
-                produtos = produtos.map(p => {
-                    if (!p.images && p.imagem) {
-                        p.images = [p.imagem];
-                        delete p.imagem;
-                    }
-                    if (!p.descricaoCompleta && p.descricao) {
-                        p.descricaoCompleta = p.descricao;
-                    }
-                    return p;
-                });
-                saveToStorage();
-            } catch(e) { produtos = []; }
-        } else {
-            produtos = [];
-        }
-        renderizarCatalogo();
-        renderizarAdminLista();
-    }
-
-    function saveToStorage() {
-        localStorage.setItem('fb_elegance_products', JSON.stringify(produtos));
-    }
-
     let filtroCategoria = 'todos';
     let termoBusca = '';
+    let adminVisible = false;
+    const adminPanel = document.getElementById('adminPanel');
 
+    // ==================== FUNÇÕES DE BANCO DE DADOS ====================
+    // Carrega os produtos e escuta mudanças em tempo real
+    function carregarProdutos() {
+        produtosRef.onSnapshot((snapshot) => {
+            const novosProdutos = [];
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                novosProdutos.push({
+                    id: doc.id,
+                    nome: data.nome,
+                    descricaoCompleta: data.descricaoCompleta || '',
+                    preco: data.preco,
+                    images: data.images || [],
+                    categoria: data.categoria,
+                    status: data.status,
+                    tamanhos: data.tamanhos || [],
+                    numeracao: data.numeracao || ''
+                });
+            });
+            produtos = novosProdutos;
+            renderizarCatalogo();
+            renderizarAdminLista();
+        }, (error) => {
+            console.error("Erro ao carregar produtos:", error);
+            document.getElementById('result-info').innerText = "Erro ao carregar produtos. Verifique o console.";
+        });
+    }
+
+    // Adiciona um novo produto
+    async function adicionarProduto() {
+        const nome = document.getElementById('prodNome').value.trim();
+        const descCompleta = document.getElementById('prodDesc').value.trim();
+        let preco = document.getElementById('prodPreco').value.trim();
+        const files = document.getElementById('prodImagens').files;
+        const categoria = document.getElementById('prodCategoria').value;
+        const status = document.getElementById('prodStatus').value;
+
+        if (!nome || !preco || files.length === 0) {
+            alert('Preencha nome, preço e selecione pelo menos uma imagem.');
+            return;
+        }
+
+        if (!preco.startsWith('R$')) {
+            preco = formatPrice(preco);
+        }
+
+        // Processar imagens como base64
+        const images = await Promise.all(Array.from(files).map(file => {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.readAsDataURL(file);
+            });
+        }));
+
+        const novoProduto = {
+            nome,
+            descricaoCompleta,
+            preco,
+            images,
+            categoria,
+            status
+        };
+
+        // Campos específicos por categoria
+        if (categoria === 'vestuario') {
+            const checkboxes = document.querySelectorAll('#dynamicFieldsContainer input[type="checkbox"]');
+            const tamanhos = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
+            if (tamanhos.length === 0) {
+                alert('Selecione pelo menos um tamanho.');
+                return;
+            }
+            novoProduto.tamanhos = tamanhos;
+        } else if (categoria === 'calcados') {
+            const numeracao = document.getElementById('numeracaoInput')?.value.trim();
+            if (!numeracao) {
+                alert('Informe a numeração.');
+                return;
+            }
+            novoProduto.numeracao = numeracao;
+        }
+
+        try {
+            await produtosRef.add(novoProduto);
+            alert('Produto adicionado com sucesso!');
+            // Limpar formulário
+            document.getElementById('prodNome').value = '';
+            document.getElementById('prodDesc').value = '';
+            document.getElementById('prodPreco').value = 'R$ ';
+            document.getElementById('prodImagens').value = '';
+            updateDynamicFields(); // recria campos dinâmicos
+        } catch (error) {
+            alert('Erro ao adicionar produto: ' + error.message);
+        }
+    }
+
+    // Exclui um produto
+    async function excluirProduto(id) {
+        if (!confirm('Excluir este produto do catálogo?')) return;
+        try {
+            await produtosRef.doc(id).delete();
+        } catch (error) {
+            alert('Erro ao excluir: ' + error.message);
+        }
+    }
+
+    // ==================== RENDERIZAÇÃO DO CATÁLOGO ====================
     function renderizarCatalogo() {
         const grid = document.getElementById('product-grid');
         const info = document.getElementById('result-info');
@@ -1102,7 +1187,6 @@
             arrow.removeEventListener('click', handleArrowClick);
             arrow.addEventListener('click', handleArrowClick);
         });
-        
         document.querySelectorAll('.btn-whatsapp-card').forEach(btn => {
             btn.removeEventListener('click', handleWhatsAppClick);
             btn.addEventListener('click', handleWhatsAppClick);
@@ -1117,7 +1201,7 @@
         });
         
         document.querySelectorAll('.product-card').forEach(card => {
-            const prodId = parseInt(card.getAttribute('data-id'));
+            const prodId = card.getAttribute('data-id');
             const prod = produtos.find(p => p.id === prodId);
             if (prod && !card.dataset.currentIndex) {
                 card.dataset.currentIndex = '0';
@@ -1128,7 +1212,7 @@
     function handleArrowClick(e) {
         e.stopPropagation();
         const arrow = e.currentTarget;
-        const prodId = parseInt(arrow.getAttribute('data-id'));
+        const prodId = arrow.getAttribute('data-id');
         const direction = arrow.getAttribute('data-dir');
         const prod = produtos.find(p => p.id === prodId);
         if (!prod || !prod.images || prod.images.length <= 1) return;
@@ -1147,7 +1231,7 @@
 
     function handleWhatsAppClick(e) {
         e.stopPropagation();
-        const id = parseInt(e.currentTarget.getAttribute('data-id'));
+        const id = e.currentTarget.getAttribute('data-id');
         const prod = produtos.find(p => p.id === id);
         if (prod) {
             const numero = "5543996179533";
@@ -1161,7 +1245,7 @@
 
     function handleDetailsClick(e) {
         e.stopPropagation();
-        const id = parseInt(e.currentTarget.getAttribute('data-id'));
+        const id = e.currentTarget.getAttribute('data-id');
         const prod = produtos.find(p => p.id === id);
         if (prod) abrirModal(prod);
     }
@@ -1171,7 +1255,7 @@
             e.target.classList.contains('nav-arrow') || e.target.classList.contains('nav-arrow-left') || e.target.classList.contains('nav-arrow-right') ||
             e.target.closest('.nav-arrow')) return;
         const card = e.currentTarget;
-        const id = parseInt(card.getAttribute('data-id'));
+        const id = card.getAttribute('data-id');
         const prod = produtos.find(p => p.id === id);
         if (prod) abrirModal(prod);
     }
@@ -1185,7 +1269,7 @@
         else categoriaLabel = 'LIFESTYLE';
         document.getElementById('modalCategory').innerText = categoriaLabel;
         document.getElementById('modalPrice').innerText = prod.preco;
-        document.getElementById('modalDesc').innerText = prod.descricaoCompleta || prod.descricao || '';
+        document.getElementById('modalDesc').innerText = prod.descricaoCompleta || '';
         let sizeText = '';
         if (prod.categoria === 'vestuario' && prod.tamanhos && prod.tamanhos.length) {
             sizeText = `Tamanhos disponíveis: ${prod.tamanhos.join(', ')}`;
@@ -1255,9 +1339,6 @@
         produtos.forEach(prod => {
             const div = document.createElement('div');
             div.className = 'admin-item';
-            let infoExtra = '';
-            if (prod.categoria === 'vestuario' && prod.tamanhos) infoExtra = ` (Tam: ${prod.tamanhos.join(',')})`;
-            if (prod.categoria === 'calcados' && prod.numeracao) infoExtra = ` (Num: ${prod.numeracao})`;
             div.innerHTML = `
                 <div class="admin-item-info">
                     <strong>${escapeHtml(prod.nome)}</strong>
@@ -1272,13 +1353,8 @@
         });
         document.querySelectorAll('.excluir-produto').forEach(btn => {
             btn.addEventListener('click', (e) => {
-                const id = parseInt(btn.getAttribute('data-id'));
-                if (confirm('Excluir este produto do catálogo?')) {
-                    produtos = produtos.filter(p => p.id !== id);
-                    saveToStorage();
-                    renderizarCatalogo();
-                    renderizarAdminLista();
-                }
+                const id = btn.getAttribute('data-id');
+                excluirProduto(id);
             });
         });
     }
@@ -1326,70 +1402,6 @@
         }
     }
 
-    function adicionarProduto() {
-        const nome = document.getElementById('prodNome').value.trim();
-        const descCompleta = document.getElementById('prodDesc').value.trim();
-        let preco = document.getElementById('prodPreco').value.trim();
-        const files = document.getElementById('prodImagens').files;
-        const categoria = document.getElementById('prodCategoria').value;
-        const status = document.getElementById('prodStatus').value;
-        if (!nome || !preco || files.length === 0) {
-            alert('Preencha nome, preço e selecione pelo menos uma imagem.');
-            return;
-        }
-        if (!preco.startsWith('R$')) preco = formatPrice(preco);
-        const images = [];
-        let loaded = 0;
-        for (let i = 0; i < files.length; i++) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                images.push(e.target.result);
-                loaded++;
-                if (loaded === files.length) {
-                    const novoId = produtos.length > 0 ? Math.max(...produtos.map(p => p.id)) + 1 : 1;
-                    const novoProduto = {
-                        id: novoId,
-                        nome: nome,
-                        descricaoCompleta: descCompleta,
-                        preco: preco,
-                        images: images,
-                        categoria: categoria,
-                        status: status
-                    };
-                    if (categoria === 'vestuario') {
-                        const checkboxes = document.querySelectorAll('#dynamicFieldsContainer input[type="checkbox"]');
-                        const tamanhos = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
-                        if (tamanhos.length === 0) {
-                            alert('Selecione pelo menos um tamanho.');
-                            return;
-                        }
-                        novoProduto.tamanhos = tamanhos;
-                    } else if (categoria === 'calcados') {
-                        const numeracao = document.getElementById('numeracaoInput')?.value.trim();
-                        if (!numeracao) {
-                            alert('Informe a numeração.');
-                            return;
-                        }
-                        novoProduto.numeracao = numeracao;
-                    }
-                    produtos.push(novoProduto);
-                    saveToStorage();
-                    renderizarCatalogo();
-                    renderizarAdminLista();
-                    document.getElementById('prodNome').value = '';
-                    document.getElementById('prodDesc').value = '';
-                    document.getElementById('prodPreco').value = 'R$ ';
-                    document.getElementById('prodImagens').value = '';
-                    updateDynamicFields();
-                    alert('Produto adicionado com sucesso!');
-                }
-            };
-            reader.readAsDataURL(files[i]);
-        }
-    }
-
-    let adminVisible = false;
-    const adminPanel = document.getElementById('adminPanel');
     function showAdminWithPassword() {
         const senha = prompt("Digite a senha do administrador:");
         if (senha === "fbadmin") {
@@ -1400,13 +1412,16 @@
     }
     function hideAdmin() { adminPanel.style.display = 'none'; adminVisible = false; }
     function toggleAdmin() { if (adminVisible) hideAdmin(); else showAdminWithPassword(); }
+
+    // Event listeners
     document.getElementById('adminButton').addEventListener('click', toggleAdmin);
     document.getElementById('adminTriggerLogo').addEventListener('dblclick', toggleAdmin);
     document.getElementById('btnAdicionarProduto').addEventListener('click', adicionarProduto);
     document.getElementById('prodCategoria').addEventListener('change', updateDynamicFields);
-    const priceInput2 = document.getElementById('prodPreco');
-    priceInput2.addEventListener('input', handlePriceInput);
-    priceInput2.addEventListener('focus', () => { if (priceInput2.value === 'R$ ') priceInput2.setSelectionRange(3, 3); });
+    const priceInput = document.getElementById('prodPreco');
+    priceInput.addEventListener('input', handlePriceInput);
+    priceInput.addEventListener('focus', () => { if (priceInput.value === 'R$ ') priceInput.setSelectionRange(3, 3); });
+
     const catBtns = document.querySelectorAll('.cat-btn');
     const coringaBtn = document.getElementById('coringaBtn');
     function aplicarFiltroCategoria(categoria) {
@@ -1427,7 +1442,9 @@
         e.preventDefault();
         document.getElementById('product-grid')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
-    loadFromStorage();
+
+    // Inicialização
+    carregarProdutos();
     adminPanel.style.display = 'none';
     adminVisible = false;
     updateDynamicFields();
