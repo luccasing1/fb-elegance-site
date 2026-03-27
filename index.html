@@ -306,24 +306,23 @@
         .copyright a { color: #aaa; text-decoration: none; transition: color 0.2s; }
         .copyright a:hover { color: #b88b4a; }
         
-        /* ===== BANNER MOBILE COMO BARRA INICIAL ===== */
-        .mobile-hero {
+        /* ===== BANNER MOBILE – visível apenas em celular ===== */
+        .header-image {
             display: none;
-            width: 100%;
-            margin: 0;
+            background-color: #000;
+            text-align: center;
+            border-bottom: 1px solid #222;
         }
-        .mobile-hero img {
-            width: 100%;
+        .header-image img {
+            max-width: 100%;
             height: auto;
-            display: block;
+            max-height: 90px;
+            width: auto;
+            object-fit: contain;
         }
         @media (max-width: 768px) {
-            .mobile-hero {
+            .header-image {
                 display: block;
-            }
-            /* Remove o espaçamento extra do container no topo quando a imagem estiver presente */
-            .container {
-                padding-top: 0;
             }
         }
         /* ===== FIM ===== */
@@ -341,9 +340,9 @@
 </head>
 <body>
 
-<!-- BANNER MOBILE (barra inicial) -->
-<div class="mobile-hero">
-    <img src="https://i.postimg.cc/qRLRqFxS/imagem-convertida.png" alt="FB Elegance Lux">
+<!-- BANNER MOBILE: visível apenas em celular -->
+<div class="header-image">
+    <img src="https://i.postimg.cc/8zzn0Xc1/Whats-App-Image-2026-03-26-at-23-41-54.jpg" alt="FB Elegance Lux">
 </div>
 
 <header class="header">
@@ -418,7 +417,7 @@
     </div>
 </footer>
 
-<!-- Modal do produto -->
+<!-- Modais e scripts (mantidos inalterados) -->
 <div id="productModal" class="modal">
     <div class="modal-content">
         <div class="modal-close" id="productModalClose">&times;</div>
@@ -439,7 +438,6 @@
     </div>
 </div>
 
-<!-- Modal do carrinho -->
 <div id="cartModal" class="cart-modal">
     <div class="cart-modal-content">
         <div class="cart-modal-header"><h3>🛍️ Seu carrinho</h3><span id="closeCart" style="cursor:pointer; font-size:1.5rem;">&times;</span></div>
@@ -452,7 +450,6 @@
     </div>
 </div>
 
-<!-- Modal de edição -->
 <div id="editModal" class="modal" style="display:none;">
     <div class="edit-modal-content">
         <div class="modal-close" id="editModalClose">&times;</div>
@@ -468,7 +465,6 @@
     </div>
 </div>
 
-<!-- Modal de login admin -->
 <div id="loginModal" class="modal" style="display:none;">
     <div class="login-modal-content">
         <div class="modal-close" id="loginModalClose">&times;</div>
@@ -478,7 +474,6 @@
     </div>
 </div>
 
-<!-- Admin panel (oculto) -->
 <div class="container"><div id="adminPanel" class="admin-panel"><h3>✦ Gerenciar acervo</h3><div class="admin-form"><input type="text" id="prodNome" placeholder="Nome do produto"><textarea id="prodDesc" rows="3" placeholder="Descrição completa"></textarea><input type="text" id="prodPreco" placeholder="R$ 0,00" value="R$ "><input type="file" id="prodImagens" accept="image/*" multiple><small>Selecione uma ou mais fotos</small><select id="prodCategoria"><option value="calcados">Calçados</option><option value="vestuario">Vestuário</option><option value="lifestyle">Lifestyle</option></select><div id="dynamicFieldsContainer"></div><select id="prodStatus"><option value="disponiveis">Disponível</option><option value="lancamentos">Lançamento</option><option value="embreve">Em breve</option></select><button id="btnAdicionarProduto">+ Adicionar peça</button></div><div class="admin-list"><h3>Produtos cadastrados</h3><div id="adminListaContainer"></div></div><button id="logoutAdminBtn" class="logout-btn">Sair do Admin</button></div></div>
 
 <div id="toastNotification" class="toast-notification"><i class="fas fa-check-circle"></i><span id="toastMessage">Produto adicionado ao carrinho</span><i class="fas fa-times toast-close" id="toastClose"></i></div>
@@ -507,7 +502,6 @@
     }
     document.getElementById('toastClose').addEventListener('click', () => toast.classList.remove('show'));
 
-    // Carrinho
     let cart = JSON.parse(localStorage.getItem('fb_cart')) || [];
     function saveCart() { localStorage.setItem('fb_cart', JSON.stringify(cart)); updateCartUI(); }
     function updateCartUI() { document.getElementById('cartCount').innerText = cart.reduce((sum,item)=>sum+item.quantity,0); renderCartModal(); }
@@ -559,7 +553,6 @@
         window.open(`https://wa.me/5543996179533?text=${msg}`, '_blank');
     }
 
-    // Carregar produtos
     async function carregarProdutos() {
         try {
             const { data, error } = await supabase.from('produtos').select('*').order('created_at', { ascending: false });
@@ -682,14 +675,12 @@
         document.body.style.overflow = 'hidden';
     }
 
-    // Fechar modal de detalhes
     document.getElementById('productModalClose').addEventListener('click', () => {
         document.getElementById('productModal').style.display = 'none';
         document.body.style.overflow = 'auto';
     });
     window.addEventListener('click', e => { if (e.target === document.getElementById('productModal')) { document.getElementById('productModal').style.display = 'none'; document.body.style.overflow = 'auto'; } });
 
-    // Admin
     async function atualizarProduto(id, updates) {
         const { error } = await supabase.from('produtos').update(updates).eq('id', id);
         if (error) { alert('Erro ao atualizar: ' + error.message); return false; }
@@ -876,7 +867,6 @@
     function updateDynamicFields() { const cat = document.getElementById('prodCategoria').value; const cont = document.getElementById('dynamicFieldsContainer'); cont.innerHTML = ''; if (cat === 'vestuario') cont.innerHTML = `<div class="dynamic-field"><label>Tamanhos disponíveis:</label><div class="size-checkbox-group"><label><input type="checkbox" value="PP"> PP</label><label><input type="checkbox" value="P"> P</label><label><input type="checkbox" value="M"> M</label><label><input type="checkbox" value="G"> G</label><label><input type="checkbox" value="GG"> GG</label></div></div>`; else if (cat === 'calcados') cont.innerHTML = `<div class="dynamic-field"><input type="text" id="numeracaoInput" placeholder="Numeração (ex: 35, 36, 37-40)"></div>`; }
     function escapeHtml(s) { if (!s) return ''; return s.replace(/[&<>]/g, m => { if (m === '&') return '&amp;'; if (m === '<') return '&lt;'; if (m === '>') return '&gt;'; return m; }); }
 
-    // Header shrink on scroll
     const header = document.querySelector('.header');
     window.addEventListener('scroll', () => {
         if (window.scrollY > 10) {
@@ -886,7 +876,6 @@
         }
     });
 
-    // Login Admin via Modal
     const loginModal = document.getElementById('loginModal');
     function showLoginModal() { loginModal.style.display = 'flex'; document.body.style.overflow = 'hidden'; }
     function hideLoginModal() { loginModal.style.display = 'none'; document.body.style.overflow = 'auto'; }
