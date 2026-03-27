@@ -14,7 +14,7 @@
         body { background-color:#0a0a0a; color:#eaeaea; font-family:'Inter',sans-serif; font-weight:350; line-height:1.5; scroll-behavior:smooth; }
         .container { max-width:1400px; margin:0 auto; padding:0 32px; }
         
-        /* Header minimalista com transição */
+        /* Header padrão (desktop) */
         .header {
             background-color: #000;
             position: sticky;
@@ -306,23 +306,60 @@
         .copyright a { color: #aaa; text-decoration: none; transition: color 0.2s; }
         .copyright a:hover { color: #b88b4a; }
         
-        /* ===== BANNER MOBILE – visível apenas em celular ===== */
-        .header-image {
-            display: none;
-            background-color: #000;
-            text-align: center;
-            border-bottom: 1px solid #222;
-        }
-        .header-image img {
-            max-width: 100%;
-            height: auto;
-            max-height: 90px;
-            width: auto;
-            object-fit: contain;
-        }
+        /* ===== BANNER DE FUNDO MOBILE ===== */
+        /* Versão mobile: o header ganha um fundo de imagem */
         @media (max-width: 768px) {
-            .header-image {
-                display: block;
+            .header {
+                background: none; /* remove o fundo preto sólido */
+                position: relative;
+                border-bottom: none; /* remove a borda para integrar melhor */
+            }
+            /* Cria um pseudo-elemento para o fundo da imagem */
+            .header::before {
+                content: "";
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-image: url('https://i.postimg.cc/8zzn0Xc1/Whats-App-Image-2026-03-26-at-23-41-54.jpg');
+                background-size: cover;
+                background-position: center;
+                opacity: 1;
+                z-index: -1;
+            }
+            /* Ajustes para manter legibilidade do conteúdo */
+            .header .container {
+                position: relative;
+                z-index: 1;
+            }
+            /* Opcional: escurecer um pouco o fundo para melhor contraste do texto */
+            .header::after {
+                content: "";
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0,0,0,0.3);
+                z-index: 0;
+                pointer-events: none;
+            }
+            /* Garantir que os textos fiquem legíveis */
+            .logo-area .tagline,
+            .logo-area .tagline span,
+            .search-header .search-box input,
+            .search-header .search-box i,
+            .header-actions .social-icon,
+            .cart-icon {
+                color: #fff;
+                text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+            }
+            .search-header .search-box input {
+                border-bottom-color: rgba(255,255,255,0.5);
+            }
+            .search-header .search-box input:focus {
+                border-bottom-color: #b88b4a;
             }
         }
         /* ===== FIM ===== */
@@ -339,11 +376,6 @@
     </style>
 </head>
 <body>
-
-<!-- BANNER MOBILE: visível apenas em celular -->
-<div class="header-image">
-    <img src="https://i.postimg.cc/8zzn0Xc1/Whats-App-Image-2026-03-26-at-23-41-54.jpg" alt="FB Elegance Lux">
-</div>
 
 <header class="header">
     <div class="container header-inner">
@@ -480,6 +512,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
+// (todo o JavaScript permanece exatamente igual ao original, sem alterações)
 (function(){
     const SUPABASE_URL = "https://bachgtlwmaroytvhhvfn.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJhY2hndGx3bWFyb3l0dmhodmZuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0OTQ4MDAsImV4cCI6MjA5MDA3MDgwMH0.J8ajqwCRrAPLkfYMuXYWs82eO6x6s4A_HteoqOtNFFI";
