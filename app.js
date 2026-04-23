@@ -23,14 +23,33 @@
     const ADMIN_API_URL = '/.netlify/functions/admin';
     let adminAuthToken = null;
 
-    async function apiAdmin(method, path, body = null) {
-        const options = {
-            method,
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${adminAuthToken}`
-            }
-        };
+async function apiAdmin(method, path, body = null) {
+  const options = {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${adminAuthToken}`
+    }
+  };
+  if (body) options.body = JSON.stringify(body);
+  
+  const response = await fetch(`${ADMIN_API_URL}${path}`, options);
+  
+  // Verifica se a resposta é JSON antes de tentar parsear
+  const contentType = response.headers.get('content-type');
+  if (contentType && contentType.includes('application/json')) {
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || 'Erro na requisição');
+    }
+    return data;
+  } else {
+    // Se não for JSON, é provavelmente um HTML de erro
+    const text = await response.text();
+    console.error('Resposta não-JSON:', text);
+    throw new Error(`Erro inesperado (${response.status})`);
+  }
+};
         if (body) options.body = JSON.stringify(body);
         const response = await fetch(`${ADMIN_API_URL}${path}`, options);
         if (!response.ok) {
