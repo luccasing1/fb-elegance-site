@@ -1,9 +1,44 @@
 (function () {
 
-    // ========== SUPABASE ==========
+    // ========== SUPRESSÃO DE AVISOS DE TRACKING PREVENTION ==========
+    (function() {
+        const originalWarn = console.warn;
+        const originalError = console.error;
+        console.warn = function(...args) {
+            if (args[0] && typeof args[0] === 'string' && args[0].includes('Tracking Prevention')) return;
+            originalWarn.apply(console, args);
+        };
+        console.error = function(...args) {
+            if (args[0] && typeof args[0] === 'string' && args[0].includes('Tracking Prevention')) return;
+            originalError.apply(console, args);
+        };
+    })();
+
+    // ========== SUPABASE (APENAS LEITURA PÚBLICA) ==========
     const SUPABASE_URL = "https://bachgtlwmaroytvhhvfn.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJhY2hndGx3bWFyb3l0dmhodmZuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0OTQ4MDAsImV4cCI6MjA5MDA3MDgwMH0.J8ajqwCRrAPLkfYMuXYWs82eO6x6s4A_HteoqOtNFFI";
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // ========== BACKEND ADMIN (FUNÇÃO SERVERLESS) ==========
+    const ADMIN_API_URL = '/.netlify/functions/admin';
+    let adminAuthToken = null;
+
+    async function apiAdmin(method, path, body = null) {
+        const options = {
+            method,
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${adminAuthToken}`
+            }
+        };
+        if (body) options.body = JSON.stringify(body);
+        const response = await fetch(`${ADMIN_API_URL}${path}`, options);
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.error || 'Erro na requisição');
+        }
+        return response.json();
+    }
 
     // ========== ESTADO ==========
     let produtos = [];
@@ -97,7 +132,7 @@
         window.open(`https://wa.me/5543996179533?text=${msg}`, '_blank');
     }
 
-    // ========== CARREGAR PRODUTOS DO SUPABASE ==========
+    // ========== CARREGAR PRODUTOS DO SUPABASE (leitura pública) ==========
     async function carregarProdutos() {
         try {
             const { data, error } = await supabase.from('produtos').select('*').order('created_at', { ascending: false });
@@ -106,7 +141,10 @@
             renderizarCatalogo();
             renderizarSecoesCuradas();
             if (adminVisible) renderizarAdminLista();
-        } catch (err) { console.error(err); }
+        } catch (err) {
+            console.error('Erro ao carregar produtos:', err);
+            showToast('Erro ao carregar produtos', true);
+        }
     }
 
     // ========== RENDERIZAÇÃO ==========
@@ -131,6 +169,7 @@
         const card = document.createElement('div');
         card.className = 'product-card';
         card.setAttribute('data-id', prod.id);
+        card.dataset.currentIndex = 0; // CORREÇÃO: inicializar índice da imagem atual
         let categoriaLabel = '', statusLabel = '', statusClass = '';
         if (prod.categoria === 'calcados') categoriaLabel = 'CALÇADOS';
         else if (prod.categoria === 'vestuario') categoriaLabel = 'VESTUÁRIO';
@@ -233,40 +272,46 @@
         }
     });
 
-    // ========== ADMIN: CRUD ==========
+    // ========== ADMIN: CRUD (VIA BACKEND SEGURO) ==========
     async function atualizarProduto(id, updates) {
-        const { error } = await supabase.from('produtos').update(updates).eq('id', id);
-        if (error) { alert('Erro ao atualizar: ' + error.message); return false; }
-        const index = produtos.findIndex(p => p.id === id);
-        if (index !== -1) produtos[index] = { ...produtos[index], ...updates };
-        renderizarCatalogo(); renderizarSecoesCuradas();
-        if (adminVisible) renderizarAdminLista();
-        return true;
+        try {
+            await apiAdmin('PUT', `/produtos/${id}`, updates);
+            const index = produtos.findIndex(p => p.id === id);
+            if (index !== -1) produtos[index] = { ...produtos[index], ...updates };
+            renderizarCatalogo();
+            renderizarSecoesCuradas();
+            if (adminVisible) renderizarAdminLista();
+            return true;
+        } catch (err) {
+            alert('Erro ao atualizar: ' + err.message);
+            return false;
+        }
     }
 
     async function excluirProduto(id) {
         if (!confirm('Excluir este produto permanentemente?')) return;
-        const produto = produtos.find(p => p.id === id);
-        if (produto && produto.images?.length) {
-            for (let url of produto.images) {
-                const fileName = url.split('/').pop();
-                await supabase.storage.from('produtos').remove([fileName]);
-            }
+        try {
+            await apiAdmin('DELETE', `/produtos/${id}`);
+            produtos = produtos.filter(p => p.id !== id);
+            renderizarCatalogo();
+            renderizarSecoesCuradas();
+            if (adminVisible) renderizarAdminLista();
+        } catch (err) {
+            alert('Erro ao excluir: ' + err.message);
         }
-        const { error } = await supabase.from('produtos').delete().eq('id', id);
-        if (error) { alert('Erro ao excluir: ' + error.message); return; }
-        produtos = produtos.filter(p => p.id !== id);
-        renderizarCatalogo(); renderizarSecoesCuradas();
-        if (adminVisible) renderizarAdminLista();
     }
 
     function renderizarAdminLista() {
         const container = document.getElementById('adminListaContainer');
         if (!container) return;
-        if (produtos.length === 0) { container.innerHTML = '<div style="padding:20px; text-align:center; color:#aaa;">Nenhum produto cadastrado</div>'; return; }
+        if (produtos.length === 0) {
+            container.innerHTML = '<div style="padding:20px; text-align:center; color:#aaa;">Nenhum produto cadastrado</div>';
+            return;
+        }
         container.innerHTML = '';
         produtos.forEach(prod => {
-            const div = document.createElement('div'); div.className = 'admin-item';
+            const div = document.createElement('div');
+            div.className = 'admin-item';
             div.innerHTML = `
                 <div class="admin-item-info">
                     <strong>${escapeHtml(prod.nome)}</strong>
@@ -283,9 +328,16 @@
             `;
             container.appendChild(div);
         });
-        document.querySelectorAll('.edit-ad').forEach(btn => btn.addEventListener('click', () => { const prod = produtos.find(p => p.id === btn.getAttribute('data-id')); if (prod) abrirEdicao(prod); }));
-        document.querySelectorAll('.mark-sold').forEach(btn => btn.addEventListener('click', () => { alternarStatusVendido(btn.getAttribute('data-id'), btn.getAttribute('data-status')); }));
-        document.querySelectorAll('.delete-prod').forEach(btn => btn.addEventListener('click', () => { excluirProduto(btn.getAttribute('data-id')); }));
+        document.querySelectorAll('.edit-ad').forEach(btn => btn.addEventListener('click', () => {
+            const prod = produtos.find(p => p.id === btn.getAttribute('data-id'));
+            if (prod) abrirEdicao(prod);
+        }));
+        document.querySelectorAll('.mark-sold').forEach(btn => btn.addEventListener('click', () => {
+            alternarStatusVendido(btn.getAttribute('data-id'), btn.getAttribute('data-status'));
+        }));
+        document.querySelectorAll('.delete-prod').forEach(btn => btn.addEventListener('click', () => {
+            excluirProduto(btn.getAttribute('data-id'));
+        }));
     }
 
     async function alternarStatusVendido(id, statusAtual) {
@@ -300,41 +352,68 @@
         const files = document.getElementById('prodImagens').files;
         const categoria = document.getElementById('prodCategoria').value;
         const status = document.getElementById('prodStatus').value;
-        if (!nome || !preco || files.length === 0) { alert('Preencha nome, preço e selecione pelo menos uma imagem.'); return; }
-        if (!preco.startsWith('R$')) preco = formatPrice(preco);
-        const uploadedUrls = [];
-        for (let file of files) {
-            const fileName = `${Date.now()}_${file.name}`;
-            const { error } = await supabase.storage.from('produtos').upload(fileName, file);
-            if (error) { alert('Falha ao enviar imagem: ' + error.message); return; }
-            const { data: publicUrlData } = supabase.storage.from('produtos').getPublicUrl(fileName);
-            uploadedUrls.push(publicUrlData.publicUrl);
+
+        if (!nome || !preco || files.length === 0) {
+            alert('Preencha nome, preço e selecione pelo menos uma imagem.');
+            return;
         }
-        const novoProduto = { nome, descricao_completa: desc, preco, images: uploadedUrls, categoria, status };
+        if (!preco.startsWith('R$')) preco = formatPrice(preco);
+
+        // Converter imagens para base64
+        const imagesBase64 = [];
+        for (let file of files) {
+            const base64 = await new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.readAsDataURL(file);
+            });
+            imagesBase64.push(base64);
+        }
+
+        const novoProduto = {
+            nome,
+            descricao_completa: desc,
+            preco,
+            categoria,
+            status,
+            imagesBase64
+        };
+
         if (categoria === 'vestuario') {
             const checkboxes = document.querySelectorAll('#dynamicFieldsContainer input[type="checkbox"]');
             const tamanhos = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
-            if (tamanhos.length === 0) { alert('Selecione pelo menos um tamanho.'); return; }
+            if (tamanhos.length === 0) {
+                alert('Selecione pelo menos um tamanho.');
+                return;
+            }
             novoProduto.tamanhos = tamanhos;
         } else if (categoria === 'calcados') {
             const numeracao = document.getElementById('numeracaoInput')?.value.trim();
-            if (!numeracao) { alert('Informe a numeração.'); return; }
+            if (!numeracao) {
+                alert('Informe a numeração.');
+                return;
+            }
             novoProduto.numeracao = numeracao;
         }
-        const { data, error } = await supabase.from('produtos').insert([novoProduto]).select();
-        if (error) { alert('Erro ao salvar: ' + error.message); return; }
-        produtos.push(data[0]);
-        renderizarCatalogo(); renderizarSecoesCuradas();
-        if (adminVisible) renderizarAdminLista();
-        document.getElementById('prodNome').value = '';
-        document.getElementById('prodDesc').value = '';
-        document.getElementById('prodPreco').value = 'R$ ';
-        document.getElementById('prodImagens').value = '';
-        updateDynamicFields();
-        alert('Produto adicionado com sucesso!');
+
+        try {
+            const data = await apiAdmin('POST', '/produtos', novoProduto);
+            produtos.push(data);
+            renderizarCatalogo();
+            renderizarSecoesCuradas();
+            if (adminVisible) renderizarAdminLista();
+            document.getElementById('prodNome').value = '';
+            document.getElementById('prodDesc').value = '';
+            document.getElementById('prodPreco').value = 'R$ ';
+            document.getElementById('prodImagens').value = '';
+            updateDynamicFields();
+            showToast('Produto adicionado com sucesso!');
+        } catch (err) {
+            alert('Erro ao salvar: ' + err.message);
+        }
     }
 
-    // ========== ADMIN: EDIÇÃO ==========
+    // ========== ADMIN: EDIÇÃO (ABRIR E SALVAR) ==========
     async function abrirEdicao(prod) {
         currentEditId = prod.id;
         document.getElementById('editNome').value = prod.nome;
@@ -347,7 +426,8 @@
         container.innerHTML = '';
         if (prod.images && prod.images.length) {
             prod.images.forEach((img, idx) => {
-                const div = document.createElement('div'); div.className = 'image-preview-item';
+                const div = document.createElement('div');
+                div.className = 'image-preview-item';
                 div.innerHTML = `<img src="${img}"><button class="remove-image-btn" data-index="${idx}">✕</button>`;
                 container.appendChild(div);
             });
@@ -382,45 +462,81 @@
         let preco = document.getElementById('editPreco').value.trim();
         const categoria = document.getElementById('editCategoria').value;
         const status = document.getElementById('editStatus').value;
-        if (!nome || !preco) { alert('Nome e preço são obrigatórios'); return; }
+
+        if (!nome || !preco) {
+            alert('Nome e preço são obrigatórios');
+            return;
+        }
         if (!preco.startsWith('R$')) preco = 'R$ ' + preco.replace(/[^\d,]/g, '').replace(',', '.');
+
         let tamanhos = null, numeracao = null;
         if (categoria === 'vestuario') {
             const checkboxes = document.querySelectorAll('#editTamanhosGroup input[type="checkbox"]');
             tamanhos = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
-            if (!tamanhos.length) { alert('Selecione pelo menos um tamanho'); return; }
+            if (!tamanhos.length) {
+                alert('Selecione pelo menos um tamanho');
+                return;
+            }
         } else if (categoria === 'calcados') {
             numeracao = document.getElementById('editNumeracao')?.value.trim();
-            if (!numeracao) { alert('Informe a numeração'); return; }
+            if (!numeracao) {
+                alert('Informe a numeração');
+                return;
+            }
         }
-        const newFiles = document.getElementById('editNewImages').files;
+
+        // Obter imagens atuais que não foram removidas
         const existingImages = produtos.find(p => p.id === currentEditId).images || [];
         let updatedImages = [...existingImages];
         document.querySelectorAll('#editImagesContainer .remove-image-btn').forEach(btn => {
             const idx = parseInt(btn.getAttribute('data-index'));
             if (!isNaN(idx)) updatedImages.splice(idx, 1);
         });
-        if (newFiles.length) {
-            for (let file of newFiles) {
-                const fileName = `${Date.now()}_${file.name}`;
-                const { error } = await supabase.storage.from('produtos').upload(fileName, file);
-                if (error) { alert('Erro upload imagem: ' + error.message); return; }
-                const { data: pub } = supabase.storage.from('produtos').getPublicUrl(fileName);
-                updatedImages.push(pub.publicUrl);
-            }
+
+        // Novas imagens (arquivos)
+        const newFiles = document.getElementById('editNewImages').files;
+        const imagesBase64 = [];
+        for (let file of newFiles) {
+            const base64 = await new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.readAsDataURL(file);
+            });
+            imagesBase64.push(base64);
         }
-        const updates = { nome, descricao_completa: desc, preco, categoria, status, images: updatedImages };
+
+        const updates = {
+            nome,
+            descricao_completa: desc,
+            preco,
+            categoria,
+            status,
+            images: updatedImages,          // URLs existentes mantidas
+            imagesBase64: imagesBase64       // novas imagens em base64
+        };
+
         if (categoria === 'vestuario') updates.tamanhos = tamanhos;
         else if (categoria === 'calcados') updates.numeracao = numeracao;
         else { updates.tamanhos = null; updates.numeracao = null; }
-        await atualizarProduto(currentEditId, updates);
-        document.getElementById('editModal').style.display = 'none';
-        document.body.style.overflow = 'auto';
-        showToast('Produto atualizado!');
+
+        try {
+            await atualizarProduto(currentEditId, updates);
+            document.getElementById('editModal').style.display = 'none';
+            document.body.style.overflow = 'auto';
+            showToast('Produto atualizado!');
+        } catch (err) {
+            alert('Erro ao atualizar: ' + err.message);
+        }
     });
 
-    document.getElementById('editCancelBtn').addEventListener('click', () => { document.getElementById('editModal').style.display = 'none'; document.body.style.overflow = 'auto'; });
-    document.getElementById('editModalClose').addEventListener('click', () => { document.getElementById('editModal').style.display = 'none'; document.body.style.overflow = 'auto'; });
+    document.getElementById('editCancelBtn').addEventListener('click', () => {
+        document.getElementById('editModal').style.display = 'none';
+        document.body.style.overflow = 'auto';
+    });
+    document.getElementById('editModalClose').addEventListener('click', () => {
+        document.getElementById('editModal').style.display = 'none';
+        document.body.style.overflow = 'auto';
+    });
 
     // ========== UTILITÁRIOS ==========
     function formatPrice(v) {
@@ -434,8 +550,11 @@
         const cat = document.getElementById('prodCategoria').value;
         const cont = document.getElementById('dynamicFieldsContainer');
         cont.innerHTML = '';
-        if (cat === 'vestuario') cont.innerHTML = `<div class="dynamic-field"><label>Tamanhos disponíveis:</label><div class="size-checkbox-group"><label><input type="checkbox" value="PP"> PP</label><label><input type="checkbox" value="P"> P</label><label><input type="checkbox" value="M"> M</label><label><input type="checkbox" value="G"> G</label><label><input type="checkbox" value="GG"> GG</label></div></div>`;
-        else if (cat === 'calcados') cont.innerHTML = `<div class="dynamic-field"><input type="text" id="numeracaoInput" placeholder="Numeração (ex: 35, 36, 37-40)"></div>`;
+        if (cat === 'vestuario') {
+            cont.innerHTML = `<div class="dynamic-field"><label>Tamanhos disponíveis:</label><div class="size-checkbox-group"><label><input type="checkbox" value="PP"> PP</label><label><input type="checkbox" value="P"> P</label><label><input type="checkbox" value="M"> M</label><label><input type="checkbox" value="G"> G</label><label><input type="checkbox" value="GG"> GG</label></div></div>`;
+        } else if (cat === 'calcados') {
+            cont.innerHTML = `<div class="dynamic-field"><input type="text" id="numeracaoInput" placeholder="Numeração (ex: 35, 36, 37-40)"></div>`;
+        }
     }
 
     function escapeHtml(s) {
@@ -451,14 +570,31 @@
 
     // ========== LOGIN ADMIN ==========
     const loginModal = document.getElementById('loginModal');
-    function showLoginModal() { loginModal.style.display = 'flex'; document.body.style.overflow = 'hidden'; }
-    function hideLoginModal() { loginModal.style.display = 'none'; document.body.style.overflow = 'auto'; }
+    function showLoginModal() {
+        loginModal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+    }
+    function hideLoginModal() {
+        loginModal.style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+
     document.getElementById('adminTriggerLogo').addEventListener('dblclick', showLoginModal);
+
+    // RECARREGAR PÁGINA COM UM CLIQUE NA LOGO
+    document.querySelector('.logo-area').addEventListener('click', (e) => {
+        if (e.detail === 1) {
+            location.reload();
+        }
+    });
+
     document.getElementById('loginModalClose').addEventListener('click', hideLoginModal);
     window.addEventListener('click', e => { if (e.target === loginModal) hideLoginModal(); });
+
     document.getElementById('loginAdminBtn').addEventListener('click', () => {
         const pass = document.getElementById('adminPassword').value;
         if (pass === "fbadmin") {
+            adminAuthToken = pass;  // token usado nas chamadas ao backend
             adminPanel.style.display = 'block';
             adminVisible = true;
             renderizarAdminLista();
@@ -470,23 +606,43 @@
     });
 
     // ========== EVENT LISTENERS GERAIS ==========
-    document.getElementById('logoutAdminBtn').addEventListener('click', () => { adminPanel.style.display = 'none'; adminVisible = false; });
+    document.getElementById('logoutAdminBtn').addEventListener('click', () => {
+        adminPanel.style.display = 'none';
+        adminVisible = false;
+        adminAuthToken = null;
+    });
+
     document.getElementById('btnAdicionarProduto').addEventListener('click', adicionarProduto);
     document.getElementById('prodCategoria').addEventListener('change', updateDynamicFields);
-    document.getElementById('prodPreco').addEventListener('input', function (e) { let raw = e.target.value; e.target.value = formatPrice(raw); e.target.setSelectionRange(3, 3); });
+    document.getElementById('prodPreco').addEventListener('input', function (e) {
+        let raw = e.target.value;
+        e.target.value = formatPrice(raw);
+        e.target.setSelectionRange(3, 3);
+    });
+
     document.querySelectorAll('.cat-btn').forEach(btn => btn.addEventListener('click', () => {
         filtroCategoria = btn.getAttribute('data-cat');
         document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         renderizarCatalogo();
     }));
-    document.getElementById('searchInput').addEventListener('input', e => { termoBusca = e.target.value; renderizarCatalogo(); });
+
+    document.getElementById('searchInput').addEventListener('input', e => {
+        termoBusca = e.target.value;
+        renderizarCatalogo();
+    });
 
     const cartModal = document.getElementById('cartModal');
-    document.getElementById('cartIcon').addEventListener('click', () => { renderCartModal(); cartModal.style.display = 'flex'; });
+    document.getElementById('cartIcon').addEventListener('click', () => {
+        renderCartModal();
+        cartModal.style.display = 'flex';
+    });
     document.getElementById('closeCart').addEventListener('click', () => cartModal.style.display = 'none');
     document.getElementById('clearCartBtn').addEventListener('click', () => { clearCart(); renderCartModal(); });
-    document.getElementById('sendCartWhatsapp').addEventListener('click', () => { sendCartToWhatsApp(); cartModal.style.display = 'none'; });
+    document.getElementById('sendCartWhatsapp').addEventListener('click', () => {
+        sendCartToWhatsApp();
+        cartModal.style.display = 'none';
+    });
     window.addEventListener('click', e => { if (e.target === cartModal) cartModal.style.display = 'none'; });
 
     // ========== INICIALIZAÇÃO ==========
